@@ -1,0 +1,69 @@
+.PHONY=(all build reconfigure push)
+
+ifeq ($(shell uname -s),Darwin)
+	SED=sed -i ''
+else
+	SED=sed -i
+endif
+
+OVS_VERSIONS = \
+	"1.4.6" \
+	"1.5.0" \
+	"1.6.1" \
+	"1.7.0" \
+	"1.7.1" \
+	"1.7.2" \
+	"1.7.3" \
+	"1.9.0" \
+	"1.9.3" \
+	"1.10.0" \
+	"1.10.2" \
+	"1.11.0" \
+	"2.0.0" \
+	"2.0.1" \
+	"2.0.2" \
+	"2.1.0" \
+	"2.1.1" \
+	"2.1.2" \
+	"2.1.3" \
+	"2.3.0" \
+	"2.3.1" \
+	"2.3.2" \
+	"2.4.0"
+
+all: reconfigure build
+
+reconfigure:
+	for v in ${OVS_VERSIONS} ; do \
+		echo "====> Reconfiguring $$v" ; \
+		rm -r $$v ; \
+		mkdir -p $$v ; \
+		cp supervisord.conf $$v/ ; \
+		cp configure-ovs.sh $$v/ ; \
+		cp Dockerfile $$v/ ; \
+		args="s/$(shell cat latest)/$$v/g" ; \
+		cmd="${SED} $$args $$v/Dockerfile" ; \
+		eval $$cmd ; \
+	done
+
+build:
+	for v in ${OVS_VERSIONS} ; do \
+		echo "====> Building mgkwill/openvswitch:$$v" ; \
+		docker build -t mgkwill/openvswitch:$$v $$v ; \
+	# Flatten images
+#	IMG_ID=$(docker run -d mgkwill/openvswitch:$$v)
+#	docker export ${IMG_ID} | docker import - mgkwill:openvswitch:$$v 
+	done
+
+push:
+	for v in ${OVS_VERSIONS} ; do \
+                echo "====> Pushing mgkwill/openvswitch:$$v to docker repository" ; \
+                docker push mgkwill/openvswitch:$$v; \
+        done
+
+compile_ovs:
+	for v in ${OVS_VERSIONS} ; do \
+		echo "====> Compiling OVS using and for alpine linux 3.2 docker container" ; \
+	        compile-ovs/mkovs_tarball.sh $$v;
+		cp compile-ovs/openvswitch-$$v.tar.gz $$v/.
+	done

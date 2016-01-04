@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Script Config Options
+OVS_VERSION="2.4.0"
+BUILD_DEST_DIR="/openvswitch/build"
+BUILD_INSTALL_DIR="$BUILD_DEST_DIR/output/install"
+TAR_DEST_DIR="$BUILD_DEST_DIR/output/images"
+CONFIG_OPTIONS="--with-sysroot=$BUILD_DEST_DIR --host=x86_64-buildroot-linux-uclibc"
+FILE_LST_DEST_DIR="$BUILD_DEST_DIR/ovs-build-files$OVS_VERSION.lst"
+
+mv /usr/bin/gcc /usr/bin/gcc.bin
+cat <<'EOF' >> /usr/bin/gcc
+#!/bin/sh
+exec $BUILD_DEST_DIR/usr/bin/gcc --sysroot=$BUILD_DEST_DIR "$@"
+EOF
+
+# Script Actions
+echo	"-------> Configuring OVS Build with -- $CONFIG_OPTIONS "
+env PATH=$PATH:$BUILD_DEST_DIR/usr/bin ./configure $CONFIG_OPTIONS
+echo	"-------> Cleaning OVS Build DIR "
+env PATH=$PATH:$BUILD_DEST_DIR/usr/bin make clean
+echo	"-------> Building OVS with -- $CONFIG_OPTIONS "
+env PATH=$PATH:$BUILD_DEST_DIR/usr/bin make
+echo	"-------> Installing OVS Build to -- $TAR_DEST_DIR "
+env PATH=$PATH:$BUILD_DEST_DIR/usr/bin make DESTDIR=$BUILD_INSTALL_DIR install
+echo	"-------> Creating OVS Build file list at -- $FILE_LST_DEST_DIR "
+cd $BUILD_INSTALL_DIR
+find . -type f -print > $FILE_LST_DEST_DIR
+echo	"-------> Creating OVS Build tarball -- $TAR_DEST_DIR/openvswitch-$OVS_VERSION.tar.gz "
+ls -al $TAR_DEST_DIR/
+tar zcvf $TAR_DEST_DIR/openvswitch-$OVS_VERSION.tar.gz `cat $FILE_LST_DEST_DIR`

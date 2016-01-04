@@ -1,0 +1,39 @@
+FROM debian:jessie
+# This will make it easier to upgrade to the next version of OVS.
+ENV OVS_VERSION 2.4.0
+# This will get rid of a build warning related to 'tput'.
+ENV TERM dumb
+RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+RUN apt-get update -q
+RUN apt-get install -q -y wget \
+	build-essential \
+	libncurses5-dev \
+	rsync \
+	python \
+	unzip \
+	bc \
+	locales \
+	cpio \
+        libssl-dev
+# Let's make wget output a bit less verbose.
+RUN echo progress = dot:mega > /.wgetrc
+RUN wget http://openvswitch.org/releases/openvswitch-$OVS_VERSION.tar.gz
+RUN tar -zxf openvswitch-$OVS_VERSION.tar.gz && \
+	rm openvswitch-$OVS_VERSION.tar.gz
+# This symlink is because WORKDIR doesn't expand $VARS.
+RUN ln -s openvswitch-$OVS_VERSION openvswitch
+WORKDIR /openvswitch
+RUN mkdir build && \
+	mkdir build/output && \
+	mkdir build/output/install && \
+	mkdir build/output/images
+COPY tool_chain.tar.gz /openvswitch/build/tool_chain.tar.gz
+WORKDIR /openvswitch/build/
+RUN tar -xvf /openvswitch/build/tool_chain.tar.gz && \
+	rm /openvswitch/build/tool_chain.tar.gz
+COPY rootfs.tar /openvswitch/build/rootfs.tar
+RUN tar --recursive-unlink -xvf /openvswitch/build/rootfs.tar
+WORKDIR /openvswitch
+ADD build_tarball.sh /opt/
+RUN /opt/build_tarball.sh
+RUN ln -s /openvswitch/build/output/images/openvswitch-$OVS_VERSION.tar.gz /openvswitch-$OVS_VERSION.tar.gz
